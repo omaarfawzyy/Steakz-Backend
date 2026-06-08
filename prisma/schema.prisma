@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  HQ_MANAGER
+  BRANCH_MANAGER
+  CHEF
+  WAITER
+  CUSTOMER
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Branch {
+  id             String          @id @default(cuid())
+  name           String
+  code           String          @unique
+  city           String
+  address        String
+  isActive       Boolean         @default(true)
+  users          User[]
+  menuItems      MenuItem[]
+  inventoryItems InventoryItem[]
+  orders         Order[]
+  shifts         Shift[]
+  tableBookings  TableBooking[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model User {
+  id             String    @id @default(cuid())
+  fullName       String
+  email          String    @unique
+  phone          String?
+  passwordHash   String
+  role           Role
+  isActive       Boolean   @default(true)
+  branchId       String?
+  branch         Branch?   @relation(fields: [branchId], references: [id])
+  customerOrders Order[]   @relation("CustomerOrders")
+  createdOrders  Order[]   @relation("CreatedOrders")
+  tableBookings  TableBooking[]
+  shifts         Shift[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model MenuItem {
+  id          String      @id @default(cuid())
+  branchId    String
+  branch      Branch      @relation(fields: [branchId], references: [id])
+  name        String
+  description String?
+  category    String
+  price       Float
+  isActive    Boolean     @default(true)
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([branchId, name])
+}
+
+model InventoryItem {
+  id              String   @id @default(cuid())
+  branchId        String
+  branch          Branch   @relation(fields: [branchId], references: [id])
+  name            String
+  sku             String
+  quantityOnHand  Int
+  reorderLevel    Int
+  unit            String
+  lastRestockedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([branchId, sku])
+}
+
+model Order {
+  id          String       @id @default(cuid())
+  branchId    String
+  branch      Branch       @relation(fields: [branchId], references: [id])
+  customerId  String?
+  customer    User?        @relation("CustomerOrders", fields: [customerId], references: [id])
+  createdById String
+  createdBy   User         @relation("CreatedOrders", fields: [createdById], references: [id])
+  orderType   OrderType
+  status      OrderStatus  @default(PENDING)
+  totalAmount Float
+  notes       String?
+  orderItems  OrderItem[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  unitPrice  Float
+
+  @@unique([orderId, menuItemId])
+}
+
+model Shift {
+  id        String      @id @default(cuid())
+  branchId  String
+  branch    Branch      @relation(fields: [branchId], references: [id])
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  startTime DateTime
+  endTime   DateTime?
+  status    ShiftStatus @default(SCHEDULED)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model TableBooking {
+  id              String        @id @default(cuid())
+  branchId        String
+  branch          Branch        @relation(fields: [branchId], references: [id])
+  customerId      String?
+  customer        User?         @relation(fields: [customerId], references: [id])
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  partySize       Int
+  bookingTime     DateTime
+  status          BookingStatus @default(PENDING)
+  specialRequests String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
