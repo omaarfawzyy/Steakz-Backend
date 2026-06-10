@@ -85,8 +85,17 @@ async function upsertUser(input: {
       isActive: true
     },
     create: {
-      ...input,
-      passwordHash
+      fullName: input.fullName,
+      email: input.email,
+      role: input.role,
+      passwordHash,
+      ...(input.branchId
+        ? {
+            branch: {
+              connect: { id: input.branchId }
+            }
+          }
+        : {})
     }
   });
 }
@@ -829,17 +838,25 @@ async function main() {
     [WAITER_ROLE]: { startHour: 16, endHour: 22 }
   } as Record<Role, { startHour: number; endHour: number }>;
 
+  const roleShiftOffsets = {
+    [Role.BRANCH_MANAGER]: [0],
+    [Role.CHEF]: [0, 2, 4, 6],
+    [WAITER_ROLE]: [0, 1, 3, 5]
+  } as Record<Role, number[]>;
+
   await prisma.shift.createMany({
-    data: roleShiftUsers.map((user) => {
+    data: roleShiftUsers.flatMap((user) => {
       const window = roleShiftWindows[user.role];
-      return {
+      const offsets = roleShiftOffsets[user.role] ?? [0];
+
+      return offsets.map((dayOffset) => ({
         branchId: user.branchId!,
         userId: user.id,
-        startTime: todayAt(window.startHour),
-        endTime: todayAt(window.endHour),
+        startTime: todayAt(window.startHour, 0, dayOffset),
+        endTime: todayAt(window.endHour, 0, dayOffset),
         status: ShiftStatus.SCHEDULED,
-        notes: `Scheduled rota: ${user.fullName} today`
-      };
+        notes: `Scheduled rota: ${user.fullName} ${dayOffset === 0 ? "today" : `in ${dayOffset} days`}`
+      }));
     })
   });
 }
