@@ -5,6 +5,7 @@ import { AppError } from "../utils/app-error";
 import { assertBranchAccess, getBranchFilter } from "../utils/access";
 import { catchAsync } from "../utils/catch-async";
 import { getRequiredParam, getStringQuery } from "../utils/request";
+import { publicUserSelect, serializeUser } from "../utils/serializers";
 
 const WAITER_ROLE = "WAITER" as Role;
 
@@ -28,14 +29,19 @@ export const listOrders = catchAsync(async (request: Request, response: Response
         }
       },
       branch: true,
-      customer: true
+      customer: {
+        select: publicUserSelect
+      }
     },
     orderBy: { createdAt: "desc" }
   });
 
   response.json({
     success: true,
-    data: orders
+    data: orders.map((order) => ({
+      ...order,
+      customer: order.customer ? serializeUser(order.customer) : null
+    }))
   });
 });
 

@@ -5,6 +5,7 @@ import { AppError } from "../utils/app-error";
 import { assertBranchAccess, getBranchFilter } from "../utils/access";
 import { catchAsync } from "../utils/catch-async";
 import { getRequiredParam, getStringQuery } from "../utils/request";
+import { publicUserSelect, serializeUser } from "../utils/serializers";
 
 export const createBooking = catchAsync(async (request: Request, response: Response) => {
   const {
@@ -75,14 +76,19 @@ export const listBookings = catchAsync(async (request: Request, response: Respon
     where,
     include: {
       branch: true,
-      customer: true
+      customer: {
+        select: publicUserSelect
+      }
     },
     orderBy: { bookingTime: "asc" }
   });
 
   response.json({
     success: true,
-    data: bookings
+    data: bookings.map((booking) => ({
+      ...booking,
+      customer: booking.customer ? serializeUser(booking.customer) : null
+    }))
   });
 });
 
