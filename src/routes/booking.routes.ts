@@ -22,7 +22,7 @@ router.post("/", authenticate, authorize(Role.CUSTOMER), validate(createBookingS
 router.get(
   "/",
   authenticate,
-  authorize(Role.ADMIN, Role.HQ_MANAGER, Role.BRANCH_MANAGER, WAITER_ROLE, Role.CUSTOMER),
+  authorize(Role.ADMIN, Role.HQ_MANAGER, Role.BRANCH_MANAGER, Role.CHEF, WAITER_ROLE, Role.CUSTOMER),
   listBookings
 );
 router.patch(
