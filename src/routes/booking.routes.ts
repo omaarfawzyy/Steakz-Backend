@@ -28,7 +28,7 @@ router.get(
 router.patch(
   "/:bookingId/status",
   authenticate,
-  authorize(Role.ADMIN, Role.HQ_MANAGER, Role.BRANCH_MANAGER),
+  authorize(Role.ADMIN, Role.HQ_MANAGER, Role.BRANCH_MANAGER, WAITER_ROLE),
   validate(updateBookingStatusSchema),
   updateBookingStatus
 );

@@ -1,11 +1,13 @@
 import type { Request, Response } from "express";
-import { Role } from "@prisma/client";
+import { BookingStatus, Role } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/app-error";
 import { assertBranchAccess, getBranchFilter } from "../utils/access";
 import { catchAsync } from "../utils/catch-async";
 import { getRequiredParam, getStringQuery } from "../utils/request";
 import { publicUserSelect, serializeUser } from "../utils/serializers";
+
+const WAITER_ROLE = "WAITER" as Role;
 
 export const createBooking = catchAsync(async (request: Request, response: Response) => {
   const {
@@ -100,7 +102,8 @@ export const updateBookingStatus = catchAsync(async (request: Request, response:
   if (
     request.user.role !== Role.ADMIN &&
     request.user.role !== Role.HQ_MANAGER &&
-    request.user.role !== Role.BRANCH_MANAGER
+    request.user.role !== Role.BRANCH_MANAGER &&
+    request.user.role !== WAITER_ROLE
   ) {
     throw new AppError(403, "You do not have permission to update table bookings.");
   }
@@ -116,6 +119,16 @@ export const updateBookingStatus = catchAsync(async (request: Request, response:
   }
 
   assertBranchAccess(request.user, existingBooking.branchId);
+
+  if (request.user.role === WAITER_ROLE) {
+    if (request.body.status !== BookingStatus.CONFIRMED) {
+      throw new AppError(403, "Waiters can only confirm table bookings.");
+    }
+
+    if (existingBooking.status !== BookingStatus.PENDING) {
+      throw new AppError(400, "Only pending bookings can be confirmed by waiters.");
+    }
+  }
 
   const booking = await prisma.tableBooking.update({
     where: { id: bookingId },
